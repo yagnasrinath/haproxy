@@ -5216,6 +5216,9 @@ static int hlua_sample_conv_wrapper(const struct arg *arg_p, struct sample *smp,
 	if (!stream)
 		return 0;
 
+	if (!stream)
+		return 0;
+
 	/* In the execution wrappers linked with a stream, the
 	 * Lua context can be not initialized. This behavior
 	 * permits to save performances because a systematic
@@ -5320,6 +5323,9 @@ static int hlua_sample_fetch_wrapper(const struct arg *arg_p, struct sample *smp
 	struct hlua_function *fcn = private;
 	struct stream *stream = smp->strm;
 	const char *error;
+
+	if (!stream)
+		return 0;
 
 	if (!stream)
 		return 0;
