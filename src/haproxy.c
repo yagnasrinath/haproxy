@@ -1386,6 +1386,7 @@ void deinit(void)
 		free(p->cookie_name);
 		free(p->cookie_domain);
 		free(p->url_param_name);
+		free(p->body_param_pattern);
 		free(p->capture_name);
 		free(p->monitor_uri);
 		free(p->rdp_cookie_name);
