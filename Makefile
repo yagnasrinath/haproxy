@@ -367,6 +367,7 @@ endif # generic
 # of "USE_PCRE" and "USE_STATIC_PCRE" (see build options below).
 REGEX = libc
 
+USE_PCRE = 1
 ifeq ($(REGEX),pcre)
 USE_PCRE = 1
 $(warning WARNING! use of "REGEX=pcre" is deprecated, consider using "USE_PCRE=1" instead.)
