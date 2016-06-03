@@ -58,6 +58,7 @@
 #ifdef USE_OPENSSL
 #include <proto/ssl_sock.h>
 #endif /* USE_OPENSSL */
+#include<pcre.h>
 
 int be_lastsession(const struct proxy *be)
 {
@@ -372,6 +373,53 @@ struct server *get_server_ph_post(struct stream *s)
 	return NULL;
 }
 
+/*
+ * this does the same as the previous server_ph, but check the body contents using a regex pattern
+ */
+struct server *get_server_bph(struct stream *s)
+{
+    unsigned int hash = 0;
+    struct http_txn *txn  = s->txn;
+    struct channel  *req  = &s->req;
+    struct http_msg *msg  = &txn->req;
+    struct proxy    *px   = s->be;
+    unsigned long    len  = http_body_bytes(msg);
+    const char      *params = b_ptr(req->buf, -http_data_rewind(msg));
+    const char      *p    = params;
+
+    if (len == 0)
+        return NULL;
+
+    if (len > req->buf->data + req->buf->size - p)
+        len = req->buf->data + req->buf->size - p;
+
+    if (px->lbprm.tot_weight == 0)
+        return NULL;
+
+    pcre *re = NULL;
+    const char *err_msg;
+    int err;
+    int offsets[6]={0};
+
+    re = pcre_compile(px->body_param_pattern, PCRE_MULTILINE, &err_msg, &err, NULL);
+//    printf("%s\n",px->body_param_pattern);
+    int rc = pcre_exec(re, NULL, p, strlen(p), 0, 0, offsets, 6);
+//    printf("%d\t%d\t%d\n",offsets[2],offsets[3],rc);
+    hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2]));
+    char * val = malloc(offsets[3]-offsets[2]+1);
+    memcpy(val, p+offsets[2],offsets[3]-offsets[2]);
+    val[offsets[3]-offsets[2]]='\0';
+//    printf("val is: %s\n",val);
+    if ((px->lbprm.algo & BE_LB_HASH_MOD) == BE_LB_HMOD_AVAL)
+        hash = full_hash(hash);
+
+    if (px->lbprm.algo & BE_LB_LKUP_CHTREE)
+        return chash_get_server_hash(px, hash);
+    else
+        return map_get_server_hash(px, hash);
+    if (!p)
+        return NULL;
+}
 
 /*
  * This function tries to find a running server for the proxy <px> following
@@ -639,6 +687,14 @@ int assign_server(struct stream *s)
 				srv = get_server_uh(s->be,
 						    b_ptr(s->req.buf, -http_uri_rewind(&s->txn->req)),
 						    s->txn->req.sl.rq.u_l);
+				break;
+
+			case BE_LB_HASH_PAT:
+				/* Body pattern hashing */
+				if (!s->txn || s->txn->req.msg_state < HTTP_MSG_BODY)
+					break;
+				if (!srv)
+					srv = get_server_bph(s);
 				break;
 
 			case BE_LB_HASH_PRM:
@@ -1424,6 +1480,8 @@ const char *backend_lb_algo_str(int algo) {
 		return "source";
 	else if (algo == BE_LB_ALGO_UH)
 		return "uri";
+	else if (algo == BE_LB_ALGO_BP)
+		return "body_param_pattern";
 	else if (algo == BE_LB_ALGO_PH)
 		return "url_param";
 	else if (algo == BE_LB_ALGO_HH)
@@ -1526,6 +1584,17 @@ int backend_parse_balance(const char **args, char **err, struct proxy *curproxy)
 			}
 		}
 	}
+	else if (!strcmp(args[0], "body_param_pattern")) {
+		if (!*args[1]) {
+			memprintf(err, "%s requires an body parameter pattern.", args[0]);
+			return -1;
+		}
+		curproxy->lbprm.algo &= ~BE_LB_ALGO;
+		curproxy->lbprm.algo |= BE_LB_ALGO_BP;
+
+		free(curproxy->body_param_pattern);
+		curproxy->body_param_pattern = strdup(args[1]);
+	}
 	else if (!strncmp(args[0], "hdr(", 4)) {
 		const char *beg, *end;
 
@@ -1583,7 +1652,7 @@ int backend_parse_balance(const char **args, char **err, struct proxy *curproxy)
 		}
 	}
 	else {
-		memprintf(err, "only supports 'roundrobin', 'static-rr', 'leastconn', 'source', 'uri', 'url_param', 'hdr(name)' and 'rdp-cookie(name)' options.");
+		memprintf(err, "only supports 'roundrobin', 'static-rr', 'leastconn', 'source', 'uri',  'url_pattern','body_param_pattern', 'hdr(name)' and 'rdp-cookie(name)' options.");
 		return -1;
 	}
 	return 0;

@@ -2656,7 +2656,6 @@ int http_wait_for_request(struct stream *s, struct channel *req, int an_bit)
 	struct http_txn *txn = s->txn;
 	struct http_msg *msg = &txn->req;
 	struct hdr_ctx ctx;
-
 	DPRINTF(stderr,"[%u] %s: stream=%p b=%p, exp(r,w)=%u,%u bf=%08x bh=%d analysers=%02x\n",
 		now_ms, __FUNCTION__,
 		s,
@@ -2665,7 +2664,6 @@ int http_wait_for_request(struct stream *s, struct channel *req, int an_bit)
 		req->flags,
 		req->buf->i,
 		req->analysers);
-
 	/* we're speaking HTTP here, so let's speak HTTP to the client */
 	s->srv_error = http_return_srv_error;
 
@@ -4829,6 +4827,17 @@ int http_process_request(struct stream *s, struct channel *req, int an_bit)
 		req->analysers |= AN_REQ_HTTP_BODY;
 	}
 
+	/* If we have no server assigned yet and we're balancing on body_param
+	 * with a regex pattern, we are interested in checking the body for
+	 * that parameter. This will be done in another analyser.
+	 */
+	if (!(s->flags & (SF_ASSIGNED|SF_DIRECT)) &&
+	    s->be->body_param_pattern != NULL &&
+	    (msg->flags & (HTTP_MSGF_CNT_LEN|HTTP_MSGF_TE_CHNK))) {
+		channel_dont_connect(req);
+		req->analysers |= AN_REQ_HTTP_BODY;
+	}
+
 	if (msg->flags & HTTP_MSGF_XFER_LEN) {
 		req->analysers |= AN_REQ_HTTP_XFER_BODY;
 #ifdef TCP_QUICKACK
@@ -4946,7 +4955,9 @@ int http_wait_for_request_body(struct stream *s, struct channel *req, int an_bit
 	 * into this. We were brought here after HTTP header analysis, so all
 	 * related structures are ready.
 	 */
-
+        /*
+         * ADD COMMENT HERE for body param
+         */
 	if (msg->msg_state < HTTP_MSG_CHUNK_SIZE) {
 		/* This is the first call */
 		if (msg->msg_state < HTTP_MSG_BODY)
@@ -11799,6 +11810,7 @@ smp_fetch_url_param(const struct arg *args, struct sample *smp, const char *kw, 
 
 	return smp_fetch_param(delim, name, name_len, args, smp, kw, private);
 }
+
 
 /* This function iterates over each parameter of the body. This requires
  * that the body has been waited for using http-buffer-request. It uses
