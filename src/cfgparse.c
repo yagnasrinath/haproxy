@@ -2701,8 +2701,7 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 				curproxy->url_param_name = strdup(defproxy.url_param_name);
 			curproxy->url_param_len = defproxy.url_param_len;
 
-			if (defproxy.body_param_pattern)
-				curproxy->body_param_pattern = strdup(defproxy.body_param_pattern);
+                        curproxy->body_param_patterns = defproxy.body_param_patterns;
 
 			if (defproxy.hh_name)
 				curproxy->hh_name = strdup(defproxy.hh_name);

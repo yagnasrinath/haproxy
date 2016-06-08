@@ -236,6 +236,11 @@ struct email_alertq {
 					 * Each check corresponds to a mailer */
 };
 
+struct body_param_pattern {
+        struct body_param_pattern* next;
+        char *re;
+};
+
 struct proxy {
 	enum obj_type obj_type;                 /* object type == OBJ_TYPE_PROXY */
 	enum pr_state state;                    /* proxy state, one of PR_* */
@@ -285,7 +290,7 @@ struct proxy {
 	char *rdp_cookie_name;			/* name of the RDP cookie to look for */
 	char *url_param_name;			/* name of the URL parameter used for hashing */
 	int  url_param_len;			/* strlen(url_param_name), computed only once */
-	char *body_param_pattern;		/* regex pattern of the URL parameter used for hashing with first capture group as the value */
+	struct body_param_pattern* body_param_patterns;	/* regex pattern of the URL parameter used for hashing with first capture group as the value */
 	int  uri_len_limit;			/* character limit for uri balancing algorithm */
 	int  uri_dirs_depth1;			/* directories+1 (slashes) limit for uri balancing algorithm */
 	int  uri_whole;				/* if != 0, calculates the hash from the whole uri. Still honors the len_limit and dirs_depth1 */

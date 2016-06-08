@@ -397,28 +397,31 @@ struct server *get_server_bph(struct stream *s)
         return NULL;
 
     pcre *re = NULL;
+    int offsets[6]={0};
+    struct body_param_pattern *bp = px->body_param_patterns;
+    int rc;
     const char *err_msg;
     int err;
-    int offsets[6]={0};
 
-    re = pcre_compile(px->body_param_pattern, PCRE_MULTILINE, &err_msg, &err, NULL);
-//    printf("%s\n",px->body_param_pattern);
-    int rc = pcre_exec(re, NULL, p, strlen(p), 0, 0, offsets, 6);
-//    printf("%d\t%d\t%d\n",offsets[2],offsets[3],rc);
-    hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2]));
-    char * val = malloc(offsets[3]-offsets[2]+1);
-    memcpy(val, p+offsets[2],offsets[3]-offsets[2]);
-    val[offsets[3]-offsets[2]]='\0';
-//    printf("val is: %s\n",val);
-    if ((px->lbprm.algo & BE_LB_HASH_MOD) == BE_LB_HMOD_AVAL)
-        hash = full_hash(hash);
+    while(bp) {
+        re = pcre_compile(bp->re, PCRE_MULTILINE, &err_msg, &err, NULL);
+        rc = pcre_exec(re, NULL, p, strlen(p), 0, 0, offsets, 6);
+        
+        if (rc>=0 && offsets[3] != offsets[2]) { 
+            hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2]));
+            if ((px->lbprm.algo & BE_LB_HASH_MOD) == BE_LB_HMOD_AVAL)
+                hash = full_hash(hash);
 
-    if (px->lbprm.algo & BE_LB_LKUP_CHTREE)
-        return chash_get_server_hash(px, hash);
-    else
-        return map_get_server_hash(px, hash);
+            if (px->lbprm.algo & BE_LB_LKUP_CHTREE)
+                return chash_get_server_hash(px, hash);
+            else
+                return map_get_server_hash(px, hash);
+        }
+        bp = bp->next;
+    }
     if (!p)
         return NULL;
+    return NULL;
 }
 
 /*
@@ -1584,17 +1587,25 @@ int backend_parse_balance(const char **args, char **err, struct proxy *curproxy)
 			}
 		}
 	}
-	else if (!strcmp(args[0], "body_param_pattern")) {
-		if (!*args[1]) {
-			memprintf(err, "%s requires an body parameter pattern.", args[0]);
-			return -1;
-		}
-		curproxy->lbprm.algo &= ~BE_LB_ALGO;
-		curproxy->lbprm.algo |= BE_LB_ALGO_BP;
-
-		free(curproxy->body_param_pattern);
-		curproxy->body_param_pattern = strdup(args[1]);
-	}
+        else if (!strcmp(args[0], "body_param_pattern")) {
+            if (!*args[1]) {
+                memprintf(err, "%s requires an body parameter pattern.", args[0]);
+                return -1;
+            }
+            curproxy->lbprm.algo &= ~BE_LB_ALGO;
+            curproxy->lbprm.algo |= BE_LB_ALGO_BP;
+            if (curproxy->body_param_patterns == NULL) {
+                curproxy->body_param_patterns = (struct body_param_pattern*)malloc(sizeof(struct body_param_pattern));
+                curproxy->body_param_patterns->re = strdup(args[1]);
+                curproxy->body_param_patterns->next = NULL;
+            }
+            else {
+                struct body_param_pattern* bp = (struct body_param_pattern*)malloc(sizeof(struct body_param_pattern));
+                bp->re = strdup(args[1]);
+                bp->next = curproxy->body_param_patterns;
+                curproxy->body_param_patterns = bp;
+            }
+        }
 	else if (!strncmp(args[0], "hdr(", 4)) {
 		const char *beg, *end;
 
