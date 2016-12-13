@@ -119,7 +119,7 @@
 #define BE_LB_HFCN_WT6    0x800000 /* wt6 hash */
 #define BE_LB_HFCN_CRC32  0xC00000 /* crc32 hash */
 #define BE_LB_HFCN_CRC16  0xC40000 /* crc32 hash */
-#define BE_LB_HASH_FUNC   0xC00000 /* get/clear hash function */
+#define BE_LB_HASH_FUNC   0xC40000 /* get/clear hash function */
 
 
 /* various constants */
