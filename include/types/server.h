@@ -246,6 +246,10 @@ struct server {
 		int line;			/* line where the section appears */
 		struct eb32_node id;		/* place in the tree of used IDs */
 	} conf;					/* config information */
+        struct {
+            int low;
+            int high;
+        } slot_conf;
 };
 
 /* Descriptor for a "server" keyword. The ->parse() function returns 0 in case of

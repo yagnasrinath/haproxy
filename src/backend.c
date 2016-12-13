@@ -80,6 +80,9 @@ static unsigned int gen_hash(const struct proxy* px, const char* key, unsigned l
 	case BE_LB_HFCN_WT6:
 		hash = hash_wt6(key, len);
 		break;
+	case BE_LB_HFCN_CRC16:
+		hash = hash_crc16(key, len);
+		break;
 	case BE_LB_HFCN_CRC32:
 		hash = hash_crc32(key, len);
 		break;
@@ -402,20 +405,19 @@ struct server *get_server_bph(struct stream *s)
     int rc;
     const char *err_msg;
     int err;
+    struct server *cur;
 
     while(bp) {
         re = pcre_compile(bp->re, PCRE_MULTILINE, &err_msg, &err, NULL);
         rc = pcre_exec(re, NULL, p, strlen(p), 0, 0, offsets, 6);
         
         if (rc>=0 && offsets[3] != offsets[2]) { 
-            hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2]));
-            if ((px->lbprm.algo & BE_LB_HASH_MOD) == BE_LB_HMOD_AVAL)
-                hash = full_hash(hash);
-
-            if (px->lbprm.algo & BE_LB_LKUP_CHTREE)
-                return chash_get_server_hash(px, hash);
-            else
-                return map_get_server_hash(px, hash);
+            hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2])) % 16384;
+            for (cur = px->srv; cur; cur = cur->next) {
+                if (hash >= cur->slot_conf.low && hash <= cur->slot_conf.high) {
+                    return cur;                    
+                }
+            }
         }
         bp = bp->next;
     }
