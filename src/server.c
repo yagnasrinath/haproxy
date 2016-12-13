@@ -1146,6 +1146,7 @@ int parse_server(const char *file, int linenum, char **args, struct proxy *curpr
                                 printf("low:%s ", low);
                                 newsrv->slot_conf.low = atoi(low);
                                 newsrv->slot_conf.high = atoi(high);
+                                cur_arg += 1;
 			} else if (!strcmp(args[cur_arg], "agent-check")) {
 				global.maxsock++;
 				do_agent = 1;
