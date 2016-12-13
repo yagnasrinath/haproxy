@@ -1026,7 +1026,21 @@ int parse_server(const char *file, int linenum, char **args, struct proxy *curpr
 		}
 
 		while (*args[cur_arg]) {
-			if (!strcmp(args[cur_arg], "agent-check")) {
+			if (!strcmp(args[cur_arg], "slots")) {
+                                cur_arg += 1;
+                                char* saveptr1=NULL;
+                                char* low = strtok_r(args[cur_arg], "-", &saveptr1);
+                                if (low == NULL) {
+                                    printf("Invalid format for slots: %s\n", args[cur_arg]);
+                                }
+                                char* high = strtok_r(NULL, "-", &saveptr1);
+                                if (high == NULL) {
+                                    printf("Invalid format for slots: %s\n", args[cur_arg]);
+                                }
+                                printf("low:%s ", low);
+                                newsrv->slot_conf.low = atoi(low);
+                                newsrv->slot_conf.high = atoi(high);
+			} else if (!strcmp(args[cur_arg], "agent-check")) {
 				global.maxsock++;
 				do_agent = 1;
 				cur_arg += 1;

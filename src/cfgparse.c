@@ -5775,11 +5775,14 @@ stats_error_parsing:
 			else if (!strcmp(args[2], "wt6")) {
 				curproxy->lbprm.algo |= BE_LB_HFCN_WT6;
 			}
+			else if (!strcmp(args[2], "crc16")) {
+				curproxy->lbprm.algo |= BE_LB_HFCN_CRC16;
+			}
 			else if (!strcmp(args[2], "crc32")) {
 				curproxy->lbprm.algo |= BE_LB_HFCN_CRC32;
 			}
 			else {
-				Alert("parsing [%s:%d] : '%s' only supports 'sdbm', 'djb2', 'crc32', or 'wt6' hash functions.\n", file, linenum, args[0]);
+				Alert("parsing [%s:%d] : '%s' only supports 'sdbm', 'djb2', 'crc16', 'crc32', or 'wt6' hash functions.\n", file, linenum, args[0]);
 				err_code |= ERR_ALERT | ERR_FATAL;
 				goto out;
 			}
