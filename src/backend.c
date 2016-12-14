@@ -410,8 +410,9 @@ struct server *get_server_bph(struct stream *s)
     struct server *cur;
 
     while(bp) {
-        re = pcre_compile(bp->re, PCRE_MULTILINE, &err_msg, &err, NULL);
+        re = pcre_compile(bp->re, PCRE_MULTILINE | PCRE_CASELESS| PCRE_UNGREEDY, &err_msg, &err, NULL);
         rc = pcre_exec(re, NULL, p, strlen(p), 0, 0, offsets, 6);
+        free(re);
         
         if (rc>=0 && offsets[3] != offsets[2]) { 
             hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2])) % 16384;
