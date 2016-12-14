@@ -401,18 +401,13 @@ struct server *get_server_bph(struct stream *s)
     if (px->lbprm.tot_weight == 0)
         return NULL;
 
-    pcre *re = NULL;
     int offsets[6]={0};
     struct body_param_pattern *bp = px->body_param_patterns;
     int rc;
-    const char *err_msg;
-    int err;
     struct server *cur;
 
     while(bp) {
-        re = pcre_compile(bp->re, PCRE_MULTILINE | PCRE_CASELESS| PCRE_UNGREEDY, &err_msg, &err, NULL);
-        rc = pcre_exec(re, NULL, p, strlen(p), 0, 0, offsets, 6);
-        free(re);
+        rc = pcre_exec(bp->re, NULL, p, strlen(p), 0, 0, offsets, 6);
         
         if (rc>=0 && offsets[3] != offsets[2]) { 
             hash = gen_hash(px, p+offsets[2], (offsets[3] - offsets[2])) % 16384;
@@ -1598,14 +1593,16 @@ int backend_parse_balance(const char **args, char **err, struct proxy *curproxy)
             }
             curproxy->lbprm.algo &= ~BE_LB_ALGO;
             curproxy->lbprm.algo |= BE_LB_ALGO_BP;
+            const char *err_msg;
+            int err;
             if (curproxy->body_param_patterns == NULL) {
                 curproxy->body_param_patterns = (struct body_param_pattern*)malloc(sizeof(struct body_param_pattern));
-                curproxy->body_param_patterns->re = strdup(args[1]);
+                curproxy->body_param_patterns->re = pcre_compile(args[1], PCRE_MULTILINE | PCRE_CASELESS| PCRE_UNGREEDY, &err_msg, &err, NULL);
                 curproxy->body_param_patterns->next = NULL;
             }
             else {
                 struct body_param_pattern* bp = (struct body_param_pattern*)malloc(sizeof(struct body_param_pattern));
-                bp->re = strdup(args[1]);
+                bp->re = pcre_compile((const char*)args[1], PCRE_MULTILINE | PCRE_CASELESS| PCRE_UNGREEDY, &err_msg, &err, NULL);
                 bp->next = curproxy->body_param_patterns;
                 curproxy->body_param_patterns = bp;
             }

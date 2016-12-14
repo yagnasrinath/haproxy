@@ -239,7 +239,7 @@ struct email_alertq {
 
 struct body_param_pattern {
         struct body_param_pattern* next;
-        char *re;
+        pcre *re;
 };
 
 struct proxy {
